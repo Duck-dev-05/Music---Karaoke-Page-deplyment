@@ -11,13 +11,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
+import { MusicFile } from '@/services/spotify';
 
-interface MusicPlayerProps {
-  currentSong: {
-    title: string;
-    path: string;
-    artist?: string;
-  } | null;
+export interface MusicPlayerProps {
+  song: MusicFile;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -38,7 +35,7 @@ interface MusicPlayerProps {
 }
 
 export function MusicPlayer({
-  currentSong,
+  song,
   isPlaying,
   currentTime,
   duration,
@@ -65,7 +62,7 @@ export function MusicPlayer({
 
   // Handle play/pause state changes
   useEffect(() => {
-    if (!audioRef.current || !currentSong) return;
+    if (!audioRef.current || !song) return;
 
     const playAudio = async () => {
       try {
@@ -83,17 +80,17 @@ export function MusicPlayer({
     };
 
     playAudio();
-  }, [isPlaying, currentSong]);
+  }, [isPlaying, song]);
 
   // Handle song changes
   useEffect(() => {
-    if (!currentSong) return;
+    if (!song) return;
 
     const loadNewSong = async () => {
       if (!audioRef.current) return;
       
       setIsLoading(true);
-      audioRef.current.src = currentSong.path;
+      audioRef.current.src = song.path;
       audioRef.current.load();
 
       try {
@@ -108,12 +105,12 @@ export function MusicPlayer({
     };
 
     loadNewSong();
-  }, [currentSong?.path]);
+  }, [song?.path]);
 
   // Smooth visibility transition
   useEffect(() => {
-    setIsVisible(!!currentSong);
-  }, [currentSong]);
+    setIsVisible(!!song);
+  }, [song]);
 
   // Handle volume changes
   useEffect(() => {
@@ -154,7 +151,7 @@ export function MusicPlayer({
           if (audioRef.current) {
             audioRef.current.pause();
           }
-          if (!currentSong) {
+          if (!song) {
             setIsVisible(false);
             setTimeout(onEnded, 300);
           }
@@ -213,7 +210,7 @@ export function MusicPlayer({
     }
   };
 
-  if (!currentSong) return null;
+  if (!song) return null;
 
   return (
     <Card 
@@ -253,9 +250,9 @@ export function MusicPlayer({
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg truncate">{currentSong.title}</h3>
-            {currentSong.artist && (
-              <p className="text-sm text-muted-foreground truncate">{currentSong.artist}</p>
+            <h3 className="font-semibold text-lg truncate">{song.title}</h3>
+            {song.artist && (
+              <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
             )}
           </div>
           <div className="flex items-center gap-2">

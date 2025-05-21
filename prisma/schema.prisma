@@ -17,6 +17,10 @@ model User {
   image         String?
   password      String?
   emailVerified DateTime?
+  bio           String?
+  location      String?
+  website       String?
+  premium       Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   songs         Song[]    @relation("UserSongs")

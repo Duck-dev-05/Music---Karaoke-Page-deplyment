@@ -5,6 +5,7 @@ import NextAuth from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
+import SpotifyProvider from 'next-auth/providers/spotify';
 
 declare module "next-auth" {
   interface Session {
@@ -14,6 +15,7 @@ declare module "next-auth" {
       email?: string | null;
       image?: string | null;
     }
+    accessToken?: string;
   }
   interface User {
     id: string;
@@ -24,6 +26,17 @@ declare module "next-auth" {
 }
 
 const prisma = new PrismaClient();
+
+const scopes = [
+  'user-read-email',
+  'user-read-private',
+  'user-read-playback-state',
+  'user-modify-playback-state',
+  'user-read-currently-playing',
+  'streaming',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+].join(' ');
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -67,6 +80,13 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     }),
+    SpotifyProvider({
+      clientId: process.env.SPOTIFY_CLIENT_ID!,
+      clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+      authorization: {
+        params: { scope: scopes },
+      },
+    }),
   ],
   pages: {
     signIn: '/login',
@@ -77,12 +97,17 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image;
+      }
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at;
       }
       return token;
     },
@@ -93,6 +118,7 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.image = token.picture as string | null;
       }
+      session.accessToken = token.accessToken;
       return session;
     },
     async redirect({ url, baseUrl }) {

@@ -1,9 +1,5 @@
 import { NextAuthOptions } from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { db } from "@/lib/db"
-import CredentialsProvider from "next-auth/providers/credentials"
-import bcrypt from "bcryptjs"
-import type { User } from ".prisma/client"
+import GoogleProvider from 'next-auth/providers/google'
 
 // Test accounts for development
 const TEST_ACCOUNTS: Partial<User>[] = [
@@ -52,73 +48,40 @@ const validateTestCredentials = (email: string, password: string): Partial<User>
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db),
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  pages: {
-    signIn: "/login",
-    error: "/error"
-  },
   providers: [
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube-music.readonly',
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
-      async authorize(credentials, req) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        // Use the test accounts defined above
-        const testAccount = validateTestCredentials(credentials.email, credentials.password);
-        if (testAccount) {
-          return testAccount as User;
-        }
-
-        return null;
-      }
-    })
+    }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      if (trigger === "update" && session?.user) {
-        return {
-          ...token,
-          ...session.user
-        };
+    async jwt({ token, account }) {
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.expiresAt = account.expires_at;
       }
-      
-      if (user) {
-        return {
-          ...token,
-          ...user
-        };
-      }
-      
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user = {
-          ...session.user,
-          id: token.id,
-          premium: token.premium,
-          role: token.role,
-          emailNotifications: token.emailNotifications,
-          pushNotifications: token.pushNotifications,
-          createdAt: token.createdAt,
-          isPremium: token.isPremium,
-          premiumUntil: token.premiumUntil,
-          premiumPlan: token.premiumPlan,
-          premiumExpiresAt: token.premiumExpiresAt
-        };
+      if (token) {
+        session.accessToken = token.accessToken as string;
       }
       return session;
-    }
+    },
+  },
+  pages: {
+    signIn: '/auth/signin',
+  },
+  session: {
+    strategy: 'jwt',
   },
   secret: process.env.NEXTAUTH_SECRET
 } 
